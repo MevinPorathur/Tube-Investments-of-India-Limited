@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tube Investments Dashboard</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { display: flex; height: 100vh; background-color: #f0f2f5; color: #333; overflow: hidden; }
+
+        /* FIXED SIDEBAR & LOGO */
+        .sidebar { width: 260px; flex: 0 0 260px; flex-shrink: 0; background-color: #18305d; color: white; display: flex; flex-direction: column; height: 100vh; z-index: 100; }
+        .sidebar-header { padding: 20px 20px 10px 20px; position: relative; }
+        .logo-container { display: flex; align-items: center; margin-bottom: 25px; }
+        .sidebar-logo { max-width: 90px; height: auto; display: block; }
+        .close-btn { position: absolute; top: 20px; right: 20px; color: #8c9caf; cursor: pointer; font-size: 14px; }
+        .company-title { font-size: 14px; font-weight: 600; line-height: 1.4; margin-bottom: 20px; }
+
+        .nav-menu { list-style: none; flex-grow: 1; overflow-y: auto; padding-bottom: 20px; }
+        .nav-item { padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; font-size: 14px; transition: background 0.2s; border-left: 3px solid transparent; }
+        .nav-item:hover { background-color: rgba(255, 255, 255, 0.05); }
+        .nav-item.active { background-color:#2f5cb0 ; border-left: 3px solid #3b82f6; }
+        .nav-label { display: flex; align-items: center; gap: 12px; }
+        .nav-icon { width: 20px; text-align: center; color: #8c9caf; transition: color 0.2s;}
+        .nav-item.active .nav-icon { color: white; }
+        
+        .chevron { font-size: 12px; color: #8c9caf; transition: transform 0.3s ease; }
+        .nav-item.active .chevron { color: white; }
+        .chevron.rotate { transform: rotate(180deg); }
+
+        .sub-menu { list-style: none; background-color: #18305d; padding: 5px 0 15px 45px; display: none; }
+        .sub-menu.open { display: block; }
+        .sub-item { padding: 8px 0; font-size: 13px; color: #b0c4de; cursor: pointer; transition: color 0.2s; }
+        .sub-item:hover { color: white; }
+        .sub-item.active-sub { color: white; font-weight: 600; }
+
+        .nav-menu::-webkit-scrollbar { width: 4px; }
+        .nav-menu::-webkit-scrollbar-track { background: transparent; }
+        .nav-menu::-webkit-scrollbar-thumb { background: #2c4a70; border-radius: 4px; }
+
+        /* FIXED MAIN CONTENT */
+        .main-content { flex-grow: 1; background-color: #f5f6fa; padding: 20px 30px; height: 100vh; overflow-y: auto; display: block; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .page-title h1 { color: #1a365d; font-size: 24px; margin-bottom: 5px; }
+        .breadcrumb { font-size: 11px; color: #666; }
+        .breadcrumb span { margin: 0 5px; }
+        .header-icons { display: flex; gap: 20px; align-items: center; color: #1a365d; font-size: 18px; cursor: pointer; }
+
+        .content-card { background-color: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04); border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 40px; }
+        
+        /* CUSTOM TOOLBAR */
+        .table-toolbar { display: flex; align-items: center; padding: 24px 24px 16px 24px; }
+        .toolbar-left { display: flex; align-items: center; gap: 15px; width: 100%; }
+        
+        .btn-add-dark { display: flex; align-items: center; gap: 8px; padding: 9px 18px; background-color: #18305d; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; transition: background-color 0.2s; }
+        .btn-add-dark:hover { background-color: #1e293b; color: white; }
+        
+        .btn-outline { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background-color: white; border: 1px solid #cbd5e1; border-radius: 6px; color: #475569; font-size: 13px; font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
+        .btn-outline:hover { background-color: #f8fafc; }
+        .btn-outline i { color: #64748b; }
+
+        /* Custom Dropdown disguised as Sort Button */
+        .custom-select-wrapper { position: relative; display: inline-block; }
+        .custom-select-wrapper select {
+            appearance: none;
+            -webkit-appearance: none;
+            padding: 8px 28px 8px 32px;
+            background-color: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            color: #475569;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            outline: none;
+            transition: background-color 0.2s;
+        }
+        .custom-select-wrapper select:hover { background-color: #f8fafc; }
+        .custom-select-wrapper .icon-left { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 13px; }
+        .custom-select-wrapper .icon-right { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 10px; }
+
+        /* Search Pill */
+        .custom-search { position: relative; margin-left: 15px; }
+        .custom-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 14px; }
+        .custom-search input { padding: 9px 15px 9px 38px; border: 1px solid #475569; border-radius: 20px; font-size: 13px; outline: none; width: 280px; transition: box-shadow 0.2s; color: #1e293b; }
+        .custom-search input:focus { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
+
+        /* =========================================
+           NEW BEAUTIFUL DATATABLES UI/UX OVERRIDES 
+           ========================================= */
+        
+        /* Hide default DataTables controls */
+        .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter { display: none !important; }
+        
+        .table-container { padding: 0 24px 24px 24px; }
+
+        /* Core Table Design */
+        table.dataTable { border-collapse: collapse !important; width: 100% !important; margin-top: 10px !important; }
+        table.dataTable.no-footer { border-bottom: none !important; }
+
+        /* Headers */
+        table.dataTable thead th { 
+            background-color: #f8fafc; /* Very light modern gray */
+            color: #475569; 
+            font-weight: 600; 
+            font-size: 13px;
+            padding: 14px 16px !important; 
+            border-bottom: 1px solid #e2e8f0 !important;
+            border-top: 1px solid #e2e8f0 !important;
+        }
+
+        /* Rows */
+        table.dataTable tbody td {
+            padding: 16px 16px !important;
+            color: #334155;
+            font-size: 13px;
+            border-bottom: 1px solid #f1f5f9 !important; /* Subtle separator */
+            vertical-align: middle;
+        }
+        
+        table.dataTable tbody tr:hover {
+            background-color: #f8fafc !important; /* Soft hover effect */
+        }
+
+        /* Actions */
+        .action-btns { display: flex; gap: 14px; align-items: center; }
+        .btn-action { border: none; background: none; cursor: pointer; font-size: 15px; color: #94a3b8; transition: color 0.2s; }
+        .btn-action.view:hover { color: #3b82f6; } 
+        .btn-action.edit:hover { color: #10b981; } 
+        .btn-action.delete:hover { color: #ef4444; }
+
+        /* Custom Pagination Design */
+        .dataTables_wrapper .dataTables_paginate {
+            padding-top: 20px;
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            float: right;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            padding: 6px 12px !important;
+            margin: 0 !important;
+            border: 1px solid #e2e8f0 !important;
+            background: white !important;
+            color: #475569 !important;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background: #f8fafc !important;
+            border-color: #cbd5e1 !important;
+            color: #1e293b !important;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+            background: #f1f5f9 !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+            font-weight: 600;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: transparent !important;
+            border-color: transparent !important;
+        }
+
+        /* Info Text ("Showing 1 to 5...") */
+        .dataTables_wrapper .dataTables_info {
+            padding-top: 25px;
+            color: #64748b;
+            font-size: 13px;
+            float: left;
+            clear: none;
+        }
+
+        /* Modal Styles */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(11, 28, 49, 0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+        .modal-overlay.show { display: flex; }
+        .modal-content { background-color: white; border-radius: 12px; width: 400px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); overflow: hidden; }
+        .modal-header { padding: 20px 24px 15px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { font-size: 18px; color: #1a365d; margin: 0; }
+        .close-modal { cursor: pointer; color: #9ca3af; transition: color 0.2s; }
+        .close-modal:hover { color: #4b5563; }
+        .modal-body { padding: 0 24px 24px; color: #4b5563; font-size: 14px; line-height: 1.5; }
+        .modal-footer { padding: 16px 24px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px; }
+        .btn-modal { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+        .btn-cancel { background-color: white; border: 1px solid #d1d5db; color: #374151; }
+        .btn-cancel:hover { background-color: #f3f4f6; }
+        .btn-confirm-delete { background-color: #ef4444; border: 1px solid #ef4444; color: white; }
+        .btn-confirm-delete:hover { background-color: #dc2626; border-color: #dc2626; }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-times close-btn"></i>
+            <div class="logo-container">
+                <img src="ti-india-grey150x100.png" alt="Company Logo" class="sidebar-logo">
+            </div>
+            <div class="company-title">Tube Investments of India Limited</div>
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item"><div class="nav-label"><i class="fas fa-th-large nav-icon"></i><span>Dashboard</span></div></li>
+            <li class="nav-item active"><div class="nav-label"><i class="fas fa-th nav-icon"></i><span>Master</span></div><i class="fas fa-chevron-down chevron rotate"></i></li>
+            <ul class="sub-menu open">
+                <li class="sub-item active-sub">Company</li>
+                <li class="sub-item">Unit</li>
+                <li class="sub-item">Department</li>
+                <li class="sub-item">Plant</li>
+            </ul>
+            <li class="nav-item"><div class="nav-label"><i class="fas fa-user nav-icon"></i><span>User</span></div><i class="fas fa-chevron-down chevron"></i></li>
+            <li class="nav-item"><div class="nav-label"><i class="fas fa-file-alt nav-icon"></i><span>Internal Audit</span></div><i class="fas fa-chevron-down chevron"></i></li>
+            <li class="nav-item"><div class="nav-label"><i class="fas fa-search nav-icon"></i><span>External Audit</span></div><i class="fas fa-chevron-down chevron"></i></li>
+            <li class="nav-item"><div class="nav-label"><i class="fas fa-users nav-icon"></i><span>Customer</span></div><i class="fas fa-chevron-down chevron"></i></li>
+        </ul>
+    </aside>
+
+    <main class="main-content">
+        <header class="header">
+            <div class="page-title">
+                <h1 id="dynamic-title">Company</h1>
+                <div class="breadcrumb">Home <span>&gt;</span> <span id="dynamic-parent">Master</span> <span>&gt;</span> <span id="dynamic-child">Company</span></div>
+            </div>
+            <div class="header-icons"><i class="fas fa-bell"></i><i class="fas fa-user-circle"></i></div>
+        </header>
+
+        <div class="content-card">
+            <div class="table-toolbar">
+                <div class="toolbar-left">
+                    <a href="add-company.html" class="btn-add-dark">
+                        <i class="fas fa-plus"></i> Add Company
+                    </a>
+                    
+                    <div class="custom-select-wrapper">
+                        <i class="fas fa-sort-amount-down icon-left"></i>
+                        <select id="entriesSelect">
+                            <option value="5">5 Entries</option>
+                            <option value="10">10 Entries</option>
+                            <option value="25">25 Entries</option>
+                            <option value="50">50 Entries</option>
+                            <option value="100">100 Entries</option>
+                        </select>
+                        <i class="fas fa-chevron-down icon-right"></i>
+                    </div>
+
+                    <button class="btn-outline" id="filterBtn"><i class="fas fa-filter"></i> Filter</button>
+                    
+                    <div class="custom-search">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="customSearch" placeholder="Search">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table id="companyTable" class="display" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Sl.No</th><th>Company Name</th><th>Company Code</th><th>Contact Person</th><th>Start Date</th><th>End Date</th><th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div id="deleteModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Delete Company?</h2><i class="fas fa-times close-modal"></i></div>
+            <div class="modal-body"><p>Are you sure you want to delete this company?</p></div>
+            <div class="modal-footer">
+                <button class="btn-modal btn-cancel" id="cancelDelete">Cancel</button>
+                <button class="btn-modal btn-confirm-delete" id="confirmDelete">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            // 1. Initialize DataTables with completely clean UI overrides
+            var table = $('#companyTable').DataTable({
+                "pageLength": 5, 
+                "lengthMenu": [[5, 10, 25, 50, 100], [5, 10, 25, 50, 100]], 
+                "columnDefs": [{ "orderable": false, "targets": 6 }],
+                "language": {
+                    "paginate": {
+                        "previous": "Previous",
+                        "next": "Next"
+                    },
+                    "info": "Showing _START_ to _END_ of _TOTAL_ entries"
+                }
+            });
+
+            // 2. Custom Toolbar Interactivity
+            $('#customSearch').on('keyup', function() {
+                table.search(this.value).draw();
+            });
+
+            $('#entriesSelect').on('change', function() {
+                table.page.len(parseInt($(this).val())).draw();
+            });
+
+            $('#filterBtn').on('click', function() { $('#customSearch').focus(); });
+
+            // 3. Load Data from LocalStorage
+            if (!localStorage.getItem('b2b_companies')) {
+                const defaultData = [
+                    { name: "TI Cycles of India", code: "TICI-001", contact: "Rajesh Kumar", startDate: "2026-05-03", endDate: "2026-05-19" },
+                    { name: "Tube Products of India", code: "TPI-002", contact: "Anita Sharma", startDate: "2026-05-12", endDate: "2026-05-27" },
+                    { name: "Cholamandalam Investment", code: "CHOLA-003", contact: "Suresh Menon", startDate: "2026-05-04", endDate: "2026-05-11" },
+                    { name: "Shanthi Gears Limited", code: "SGL-004", contact: "Arun Prasad", startDate: "2026-05-04", endDate: "2026-05-24" },
+                    { name: "CG Power Systems", code: "CGP-005", contact: "Manoj Nair", startDate: "2026-05-19", endDate: "2026-05-12" }
+                ];
+                localStorage.setItem('b2b_companies', JSON.stringify(defaultData));
+            }
+
+            let companies = JSON.parse(localStorage.getItem('b2b_companies')) || [];
+            companies.forEach((company, index) => {
+                let slNo = index + 1;
+                let actionHTML = `
+                    <div class="action-btns">
+                        <button class="btn-action view" title="View"><i class="fas fa-eye"></i></button>
+                        <button class="btn-action edit" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button class="btn-action delete" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                    </div>`;
+                
+                table.row.add([slNo, company.name, company.code, company.contact, company.startDate, company.endDate, actionHTML]).draw(false);
+            });
+
+            // 4. View & Edit Buttons
+            $('#companyTable tbody').on('click', '.btn-action.view', function () {
+                let targetCode = table.row($(this).parents('tr')).data()[2]; 
+                window.location.href = 'view-company.html?code=' + encodeURIComponent(targetCode);
+            });
+
+            $('#companyTable tbody').on('click', '.btn-action.edit', function () {
+                let targetCode = table.row($(this).parents('tr')).data()[2]; 
+                window.location.href = 'edit-company.html?code=' + encodeURIComponent(targetCode);
+            });
+
+            // 5. Delete Logic
+            const modal = document.getElementById('deleteModal');
+            let rowToDelete = null;
+
+            $('#companyTable tbody').on('click', '.btn-action.delete', function () {
+                rowToDelete = table.row($(this).parents('tr'));
+                modal.classList.add('show');
+            });
+
+            function closeModal() { modal.classList.remove('show'); rowToDelete = null; }
+            document.querySelector('.close-modal').addEventListener('click', closeModal);
+            document.getElementById('cancelDelete').addEventListener('click', closeModal);
+            
+            document.getElementById('confirmDelete').addEventListener('click', function() {
+                if (rowToDelete) { 
+                    let targetCode = rowToDelete.data()[2]; 
+                    let currentCompanies = JSON.parse(localStorage.getItem('b2b_companies')) || [];
+                    let updatedCompanies = currentCompanies.filter(c => c.code !== targetCode);
+                    localStorage.setItem('b2b_companies', JSON.stringify(updatedCompanies));
+                    rowToDelete.remove().draw(false); 
+                }
+                closeModal();
+            });
+
+            // 6. Sidebar Interactivity
+            const navItems = document.querySelectorAll('.nav-item');
+            const subItems = document.querySelectorAll('.sub-item');
+            
+            navItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    navItems.forEach(ni => ni.classList.remove('active'));
+                    this.classList.add('active');
+                    const nextElement = this.nextElementSibling;
+                    const chevron = this.querySelector('.chevron');
+                    if (nextElement && nextElement.classList.contains('sub-menu')) {
+                        const isOpen = nextElement.classList.contains('open');
+                        if (!isOpen) { nextElement.classList.add('open'); if (chevron) chevron.classList.add('rotate'); } 
+                        else { nextElement.classList.remove('open'); if (chevron) chevron.classList.remove('rotate'); }
+                    } else {
+                        updateHeader(this.querySelector('span').textContent, '');
+                    }
+                });
+            });
+
+            subItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    subItems.forEach(si => si.classList.remove('active-sub'));
+                    this.classList.add('active-sub');
+                    const parentMenuLi = this.parentElement.previousElementSibling;
+                    const parentCategoryName = parentMenuLi.querySelector('.nav-label span').textContent;
+                    const currentItemName = this.textContent;
+                    updateHeader(parentCategoryName, currentItemName);
+                });
+            });
+
+            function updateHeader(parentName, childName) {
+                const titleEl = document.getElementById('dynamic-title');
+                const breadcrumbParent = document.getElementById('dynamic-parent');
+                const breadcrumbChild = document.getElementById('dynamic-child');
+                if (childName) {
+                    titleEl.textContent = childName;
+                    breadcrumbParent.textContent = parentName;
+                    breadcrumbChild.textContent = childName;
+                    breadcrumbChild.previousElementSibling.style.display = 'inline';
+                } else {
+                    titleEl.textContent = parentName;
+                    breadcrumbParent.textContent = parentName;
+                    breadcrumbChild.textContent = '';
+                    breadcrumbChild.previousElementSibling.style.display = 'none';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
